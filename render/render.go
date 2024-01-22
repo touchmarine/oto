@@ -9,7 +9,7 @@ import (
 
 	"github.com/fatih/structtag"
 	"github.com/gobuffalo/plush"
-	"github.com/pacedotdev/oto/parser"
+	"github.com/touchmarine/oto/parser"
 	"github.com/pkg/errors"
 )
 

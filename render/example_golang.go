@@ -6,7 +6,7 @@ import (
 	"html/template"
 	"strings"
 
-	"github.com/pacedotdev/oto/parser"
+	"github.com/touchmarine/oto/parser"
 )
 
 func ObjectGolang(def parser.Definition, object *parser.Object, tabs int) template.HTML {
