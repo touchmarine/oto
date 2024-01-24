@@ -109,7 +109,8 @@ type Object struct {
 	Comment            string  `json:"comment"`
 	// Metadata are typed key/value pairs extracted from the
 	// comments.
-	Metadata map[string]interface{} `json:"metadata"`
+	Metadata                map[string]interface{} `json:"metadata"`
+	ImplementsJSONMarshaler bool                   `json:"implementsJSONMarshaler"`
 }
 
 // Field describes the field inside an Object.
@@ -316,12 +317,54 @@ func (p *Parser) parseMethod(pkg *packages.Package, serviceName string, methodTy
 	return m, nil
 }
 
+// signatures from https://pkg.go.dev/honnef.co/go/tools@v0.4.6/knowledge
+
+var marshalTextSignature = types.NewSignatureType(nil, nil, nil,
+	types.NewTuple(),
+	types.NewTuple(
+		types.NewParam(token.NoPos, nil, "", types.NewSlice(types.Typ[types.Byte])),
+		types.NewParam(token.NoPos, nil, "", types.Universe.Lookup("error").Type()),
+	),
+	false,
+)
+
+var textMarshalerInterface = types.NewInterfaceType(
+	[]*types.Func{
+		types.NewFunc(token.NoPos, nil, "MarshalText", marshalTextSignature),
+	},
+	nil,
+).Complete()
+
+var marshalJSONSignature = types.NewSignatureType(nil, nil, nil,
+	types.NewTuple(),
+	types.NewTuple(
+		types.NewParam(token.NoPos, nil, "", types.NewSlice(types.Typ[types.Byte])),
+		types.NewParam(token.NoPos, nil, "", types.Universe.Lookup("error").Type()),
+	),
+	false,
+)
+
+var jsonMarshalerInterface = types.NewInterfaceType(
+	[]*types.Func{
+		types.NewFunc(token.NoPos, nil, "MarshalJSON", marshalJSONSignature),
+	},
+	nil,
+).Complete()
+
 // parseObject parses a struct type and adds it to the Definition.
 //
 // depth is 0-indexed.
 func (p *Parser) parseObject(pkg *packages.Package, o types.Object, v *types.Struct, depth int) error {
 	var obj Object
 	obj.Name = o.Name()
+	// Use a pointer type, otherwise types.Implements reports false for a method
+	// with a pointer receiver.
+	pointerType := o.Type()
+	if _, ok := pointerType.(*types.Pointer); !ok {
+		pointerType = types.NewPointer(pointerType)
+	}
+	// json.Marshal tries calling MarshalJSON and MarshalText, in that order.
+	obj.ImplementsJSONMarshaler = types.Implements(pointerType, jsonMarshalerInterface) || types.Implements(pointerType, textMarshalerInterface)
 	obj.Comment = p.commentForType(obj.Name)
 	var err error
 	obj.Metadata, obj.Comment, err = p.extractCommentMetadata(obj.Comment)
