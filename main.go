@@ -6,6 +6,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"path"
 	"strings"
 
 	"github.com/dustin/go-humanize"
@@ -76,7 +77,12 @@ flags:`)
 	if err != nil {
 		return err
 	}
-	out, err := render.Render(string(b), def, params)
+	renderFunc := render.Render
+    // compromise between least impact on backward compatibility and simplicity
+	if path.Ext(*template) == ".tmpl" {
+		renderFunc = render.RenderTextTemplate
+	}
+	out, err := renderFunc(string(b), def, params)
 	if err != nil {
 		return err
 	}

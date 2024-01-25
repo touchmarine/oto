@@ -6,12 +6,43 @@ import (
 	"go/doc"
 	"html/template"
 	"strings"
+	textTemplate "text/template"
 
 	"github.com/fatih/structtag"
 	"github.com/gobuffalo/plush"
 	"github.com/touchmarine/oto/parser"
 	"github.com/pkg/errors"
 )
+
+// RenderTextTemplate is like Render but uses text/template.
+func RenderTextTemplate(text string, def parser.Definition, params map[string]interface{}) (string, error) {
+	funcs := textTemplate.FuncMap{
+		"camelizeDown":      camelizeDown,
+		"camelizeUp":        camelizeUp,
+		"camelizeUpField":   camelizeUpField,
+		"json":              toJSONHelper,
+		"jsonInline":        toJSONInlineHelper,
+		"formatCommentLine": formatCommentLine,
+		"formatCommentText": formatCommentText,
+		"formatCommentHtml": formatCommentHTML,
+		"formatTags":        formatTags,
+		"objectGolang":      ObjectGolang,
+		"smartPrefix":       smartPrefix,
+	}
+	t := textTemplate.Must(textTemplate.New("").Funcs(funcs).Parse(text))
+	var b strings.Builder
+	data := struct {
+		Def    *parser.Definition
+		Params map[string]interface{}
+	}{
+		Def:    &def,
+		Params: params,
+	}
+	if err := t.Execute(&b, data); err != nil {
+		return "", err
+	}
+	return b.String(), nil
+}
 
 // Render renders the template using the Definition.
 func Render(template string, def parser.Definition, params map[string]interface{}) (string, error) {
