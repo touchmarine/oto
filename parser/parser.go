@@ -178,7 +178,7 @@ type Parser struct {
 	objects map[string]struct{}
 
 	// docs are the docs for extracting comments.
-	docs *doc.Package
+	docs []*doc.Package
 }
 
 // New makes a fresh parser using the specified patterns.
@@ -193,7 +193,7 @@ func New(patterns ...string) *Parser {
 // Parse parses the files specified, returning the definition.
 func (p *Parser) Parse() (Definition, error) {
 	cfg := &packages.Config{
-		Mode:  packages.NeedTypes | packages.NeedName | packages.NeedTypesInfo | packages.NeedDeps | packages.NeedName | packages.NeedSyntax,
+		Mode:  packages.NeedTypes | packages.NeedName | packages.NeedTypesInfo | packages.NeedDeps | packages.NeedName | packages.NeedSyntax | packages.NeedImports,
 		Tests: false,
 	}
 	pkgs, err := packages.Load(cfg, p.patterns...)
@@ -204,9 +204,14 @@ func (p *Parser) Parse() (Definition, error) {
 	p.objects = make(map[string]struct{})
 	var excludedObjectsTypeIDs []string
 	for _, pkg := range pkgs {
-		p.docs, err = doc.NewFromFiles(pkg.Fset, pkg.Syntax, "")
-		if err != nil {
-			panic(err)
+		docPkgs := pkg.Imports
+		docPkgs[""] = pkg
+		for importPath, docPkg := range docPkgs {
+			pkgDocs, err := doc.NewFromFiles(docPkg.Fset, docPkg.Syntax, importPath)
+			if err != nil {
+				panic(err)
+			}
+			p.docs = append(p.docs, pkgDocs)
 		}
 		p.def.PackageName = pkg.Name
 		scope := pkg.Types.Scope()
@@ -580,9 +585,11 @@ func isInSlice(slice []string, s string) bool {
 }
 
 func (p *Parser) lookupType(name string) *doc.Type {
-	for i := range p.docs.Types {
-		if p.docs.Types[i].Name == name {
-			return p.docs.Types[i]
+	for _, docs := range p.docs {
+		for i := range docs.Types {
+			if docs.Types[i].Name == name {
+				return docs.Types[i]
+			}
 		}
 	}
 	return nil
