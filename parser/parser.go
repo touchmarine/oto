@@ -193,7 +193,7 @@ func New(patterns ...string) *Parser {
 // Parse parses the files specified, returning the definition.
 func (p *Parser) Parse() (Definition, error) {
 	cfg := &packages.Config{
-		Mode:  packages.NeedTypes | packages.NeedName | packages.NeedTypesInfo | packages.NeedDeps | packages.NeedName | packages.NeedSyntax | packages.NeedImports,
+		Mode:  packages.NeedTypes | packages.NeedName | packages.NeedTypesInfo | packages.NeedDeps | packages.NeedSyntax | packages.NeedImports,
 		Tests: false,
 	}
 	pkgs, err := packages.Load(cfg, p.patterns...)
